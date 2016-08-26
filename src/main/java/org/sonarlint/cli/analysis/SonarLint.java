@@ -25,6 +25,8 @@ import java.nio.file.Paths;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
+
+import org.codehaus.jackson.JsonGenerationException;
 import org.sonarlint.cli.InputFileFinder;
 import org.sonarlint.cli.report.ReportFactory;
 import org.sonarlint.cli.report.Reporter;
@@ -43,8 +45,11 @@ public abstract class SonarLint {
     // do nothing by default
   }
 
-  public void runAnalysis(Map<String, String> properties, ReportFactory reportFactory, InputFileFinder finder) {
-    String baseDir = System.getProperty(PROJECT_HOME);
+  public void runAnalysis(Map<String, String> properties, ReportFactory reportFactory, InputFileFinder finder) throws IOException{
+    //Todo
+    //overrided base dir with inputdir given as arg.
+    //String baseDir = System.getProperty(PROJECT_HOME);
+    String baseDir=Paths.get(properties.get("inputDir")).toString();
 
     if (baseDir == null) {
       throw new IllegalStateException("Can't find project home. System property not set: " + PROJECT_HOME);
@@ -70,7 +75,7 @@ public abstract class SonarLint {
 
   protected abstract RuleDetails getRuleDetails(String ruleKey);
 
-  protected abstract void doAnalysis(Map<String, String> properties, ReportFactory reportFactory, List<ClientInputFile> inputFiles, Path baseDirPath);
+  protected abstract void doAnalysis(Map<String, String> properties, ReportFactory reportFactory, List<ClientInputFile> inputFiles, Path baseDirPath) throws IOException;
 
   public abstract void stop();
 

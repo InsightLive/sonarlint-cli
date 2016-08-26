@@ -28,6 +28,9 @@ import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.text.ParseException;
 import java.util.Map;
+import java.util.Properties;
+import java.util.Set;
+
 import org.sonarlint.cli.analysis.SonarLint;
 import org.sonarlint.cli.analysis.SonarLintFactory;
 import org.sonarlint.cli.config.ConfigurationReader;
@@ -82,7 +85,8 @@ public class Main {
     try {
       SonarLint sonarLint = sonarLintFactory.createSonarLint(opts.isUpdate(), opts.isVerbose());
       sonarLint.start(opts.isUpdate());
-
+      Properties properties = opts.properties();
+      Set<String> keys = properties.stringPropertyNames();
       Map<String, String> props = Util.toMap(opts.properties());
 
       if (opts.isInteractive()) {
@@ -191,8 +195,8 @@ public class Main {
         LOGGER.error(e.getMessage());
         String previousMsg = "";
         for (Throwable cause = e.getCause(); cause != null
-          && cause.getMessage() != null
-          && !cause.getMessage().equals(previousMsg); cause = cause.getCause()) {
+                && cause.getMessage() != null
+                && !cause.getMessage().equals(previousMsg); cause = cause.getCause()) {
           LOGGER.error("Caused by: " + cause.getMessage());
           previousMsg = cause.getMessage();
         }

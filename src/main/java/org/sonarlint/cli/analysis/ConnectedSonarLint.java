@@ -19,10 +19,15 @@
  */
 package org.sonarlint.cli.analysis;
 
+import java.io.File;
+import java.io.IOException;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
+
+import org.codehaus.jackson.map.ObjectMapper;
 import org.sonarlint.cli.config.SonarQubeServer;
 import org.sonarlint.cli.report.ReportFactory;
 import org.sonarlint.cli.util.Logger;
@@ -30,6 +35,8 @@ import org.sonarlint.cli.util.SystemInfo;
 import org.sonarsource.sonarlint.core.client.api.common.RuleDetails;
 import org.sonarsource.sonarlint.core.client.api.common.analysis.AnalysisResults;
 import org.sonarsource.sonarlint.core.client.api.common.analysis.ClientInputFile;
+import org.sonarsource.sonarlint.core.client.api.common.analysis.Issue;
+import org.sonarsource.sonarlint.core.client.api.common.analysis.IssueListener;
 import org.sonarsource.sonarlint.core.client.api.connected.ConnectedAnalysisConfiguration;
 import org.sonarsource.sonarlint.core.client.api.connected.ConnectedSonarLintEngine;
 import org.sonarsource.sonarlint.core.client.api.connected.GlobalUpdateStatus;
@@ -68,9 +75,9 @@ public class ConnectedSonarLint extends SonarLint {
 
   private void checkModuleStatus() {
     engine.allModulesByKey().keySet().stream()
-      .filter(key -> key.equals(moduleKey))
-      .findAny()
-      .orElseThrow(() -> new IllegalStateException("Project key '" + moduleKey + "' not found in the binding storage. Maybe an update of the storage is needed with '-u'?"));
+            .filter(key -> key.equals(moduleKey))
+            .findAny()
+            .orElseThrow(() -> new IllegalStateException("Project key '" + moduleKey + "' not found in the binding storage. Maybe an update of the storage is needed with '-u'?"));
 
     ModuleUpdateStatus moduleUpdateStatus = engine.getModuleUpdateStatus(moduleKey);
     if (moduleUpdateStatus == null) {
@@ -87,9 +94,9 @@ public class ConnectedSonarLint extends SonarLint {
   private void update() {
     engine.update(getServerConfiguration(server));
     engine.allModulesByKey().keySet().stream()
-      .filter(key -> key.equals(moduleKey))
-      .findAny()
-      .orElseThrow(() -> new IllegalStateException("Project key '" + moduleKey + "' not found in the SonarQube server"));
+            .filter(key -> key.equals(moduleKey))
+            .findAny()
+            .orElseThrow(() -> new IllegalStateException("Project key '" + moduleKey + "' not found in the SonarQube server"));
     updateModule();
     LOGGER.info("Binding updated");
   }
@@ -100,8 +107,8 @@ public class ConnectedSonarLint extends SonarLint {
 
   private static ServerConfiguration getServerConfiguration(SonarQubeServer server) {
     ServerConfiguration.Builder serverConfigBuilder = ServerConfiguration.builder()
-      .url(server.url())
-      .userAgent("SonarLint CLI " + SystemInfo.getVersion());
+            .url(server.url())
+            .userAgent("SonarLint CLI " + SystemInfo.getVersion());
 
     if (server.token() != null) {
       serverConfigBuilder.token(server.token());
@@ -112,13 +119,39 @@ public class ConnectedSonarLint extends SonarLint {
   }
 
   @Override
-  protected void doAnalysis(Map<String, String> properties, ReportFactory reportFactory, List<ClientInputFile> inputFiles, Path baseDirPath) {
+  protected void doAnalysis(Map<String, String> properties, ReportFactory reportFactory, List<ClientInputFile> inputFiles, Path baseDirPath) throws IOException {
+
     Date start = new Date();
     IssueCollector collector = new IssueCollector();
     ConnectedAnalysisConfiguration config = new ConnectedAnalysisConfiguration(moduleKey, baseDirPath, baseDirPath.resolve(".sonarlint"),
-      inputFiles, properties);
+            inputFiles, properties);
     AnalysisResults result = engine.analyze(config, collector);
-    generateReports(collector.get(), result, reportFactory, baseDirPath.getFileName().toString(), baseDirPath, start);
+    //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    List<Issue> src = collector.get();
+    List<Violation> violations = new ArrayList<Violation>();
+    for (Issue issue : src) {
+
+      Violation vio = new Violation();
+      vio.setEndLine(issue.getEndLine());
+      vio.setFilePath(issue.getInputFile().getPath().toAbsolutePath().toString());
+      vio.setMessage(issue.getMessage());
+      vio.setStartLine(issue.getStartLine());
+      vio.setRuleKey(issue.getRuleKey());
+      vio.setRuleName(issue.getRuleName());
+      vio.setSeverity(issue.getSeverity());
+      vio.setEndLineOffset(issue.getEndLineOffset());
+      vio.setStartLineOffset(issue.getStartLineOffset());
+
+      violations.add(vio);
+    }
+
+    ViolationWrapper violationWrapper = new ViolationWrapper();
+    violationWrapper.setViolations(violations);
+
+    ObjectMapper objectMapper = new ObjectMapper();
+    objectMapper.writeValue(new File(properties.get("outputDir")), violations);
+    //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    //generateReports(collector.get(), result, reportFactory, baseDirPath.getFileName().toString(), baseDirPath, start);
   }
 
   @Override

@@ -32,7 +32,7 @@ public class Logger {
     this.stdErr = System.err;
     this.stdOut = System.out;
   }
-  
+
   public Logger(PrintStream stdOut, PrintStream stdErr) {
     this.stdErr = stdErr;
     this.stdOut = stdOut;
@@ -78,6 +78,7 @@ public class Logger {
 
   public void error(String message) {
     stdErr.println("ERROR: " + message);
+    System2.INSTANCE.exit(1);
   }
 
   public void error(String message, Throwable t) {
@@ -85,5 +86,6 @@ public class Logger {
     if (t != null && displayStackTrace) {
       t.printStackTrace(stdErr);
     }
+    System2.INSTANCE.exit(1);
   }
 }
