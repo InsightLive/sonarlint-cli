@@ -1,7 +1,7 @@
 /*
  * SonarLint CLI
- * Copyright (C) 2016-2016 SonarSource SA
- * mailto:contact AT sonarsource DOT com
+ * Copyright (C) 2016-2017 SonarSource SA
+ * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -68,6 +68,15 @@ public class Logger {
     }
   }
 
+  public void debug(String message, Throwable t) {
+    if (isDebugEnabled()) {
+      stdErr.println("DEBUG: " + message);
+      if (displayStackTrace) {
+        t.printStackTrace(stdErr);
+      }
+    }
+  }
+
   public void info(String message) {
     stdOut.println("INFO: " + message);
   }
@@ -83,7 +92,7 @@ public class Logger {
 
   public void error(String message, Throwable t) {
     stdErr.println("ERROR: " + message);
-    if (t != null && displayStackTrace) {
+    if (displayStackTrace) {
       t.printStackTrace(stdErr);
     }
     System2.INSTANCE.exit(1);

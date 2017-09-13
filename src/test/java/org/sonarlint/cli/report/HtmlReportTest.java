@@ -1,7 +1,7 @@
 /*
  * SonarLint CLI
- * Copyright (C) 2016-2016 SonarSource SA
- * mailto:contact AT sonarsource DOT com
+ * Copyright (C) 2016-2017 SonarSource SA
+ * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -21,7 +21,6 @@ package org.sonarlint.cli.report;
 
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.LinkedList;
@@ -33,6 +32,8 @@ import org.sonarsource.sonarlint.core.client.api.common.RuleDetails;
 import org.sonarsource.sonarlint.core.client.api.common.analysis.AnalysisResults;
 import org.sonarsource.sonarlint.core.client.api.common.analysis.ClientInputFile;
 import org.sonarsource.sonarlint.core.client.api.common.analysis.Issue;
+import org.sonarsource.sonarlint.core.tracking.IssueTrackable;
+import org.sonarsource.sonarlint.core.tracking.Trackable;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
@@ -69,16 +70,30 @@ public class HtmlReportTest {
       "<!doctype html><html><head><link href=\"rule.css\" rel=\"stylesheet\" type=\"text/css\" /></head><body><h1><big>Foo</big> (squid:1234)</h1><div class=\"rule-desc\">foo bar</div></body></html>");
   }
 
+  @Test
+  public void testExtendedDesc() {
+    RuleDetails mockRuleDetailsWithExtendedDesc = mockRuleDetails();
+    when(mockRuleDetailsWithExtendedDesc.getExtendedDescription()).thenReturn("bar baz");
+
+    html.execute("project", new Date(), Arrays.asList(createTestIssue("foo", "squid:1234", "bla", "MAJOR", 1)), result,
+      k -> "squid:1234".equals(k) ? mockRuleDetailsWithExtendedDesc : null);
+
+    assertThat(reportFile.getParent().resolve("sonarlintreport_rules/rule.css").toFile()).exists();
+    assertThat(reportFile.getParent().resolve("sonarlintreport_rules/squid_1234.html").toFile()).usingCharset(StandardCharsets.UTF_8).hasContent(
+      "<!doctype html><html><head><link href=\"rule.css\" rel=\"stylesheet\" type=\"text/css\" /></head><body><h1><big>Foo</big> (squid:1234)</h1><div class=\"rule-desc\">foo bar\n<div>bar baz</div></div></body></html>");
+  }
+
   private RuleDetails mockRuleDetails() {
     RuleDetails ruleDetails = mock(RuleDetails.class);
     when(ruleDetails.getName()).thenReturn("Foo");
     when(ruleDetails.getHtmlDescription()).thenReturn("foo bar");
+    when(ruleDetails.getExtendedDescription()).thenReturn("");
     return ruleDetails;
   }
 
-  private static Issue createTestIssue(String filePath, String ruleKey, String name, String severity, int line) {
+  private static Trackable createTestIssue(String filePath, String ruleKey, String name, String severity, int line) {
     ClientInputFile inputFile = mock(ClientInputFile.class);
-    when(inputFile.getPath()).thenReturn(Paths.get(filePath));
+    when(inputFile.getPath()).thenReturn(filePath);
 
     Issue issue = mock(Issue.class);
     when(issue.getStartLine()).thenReturn(line);
@@ -89,6 +104,6 @@ public class HtmlReportTest {
     when(issue.getInputFile()).thenReturn(inputFile);
     when(issue.getRuleKey()).thenReturn(ruleKey);
     when(issue.getSeverity()).thenReturn(severity);
-    return issue;
+    return new IssueTrackable(issue);
   }
 }

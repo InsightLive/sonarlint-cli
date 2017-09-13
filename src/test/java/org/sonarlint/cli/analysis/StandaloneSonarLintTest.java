@@ -1,7 +1,7 @@
 /*
  * SonarLint CLI
- * Copyright (C) 2016-2016 SonarSource SA
- * mailto:contact AT sonarsource DOT com
+ * Copyright (C) 2016-2017 SonarSource SA
+ * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -25,8 +25,6 @@ import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.junit.rules.TemporaryFolder;
 import org.sonarlint.cli.InputFileFinder;
-import org.sonarlint.cli.SonarProperties;
-import org.sonarlint.cli.analysis.StandaloneSonarLint;
 import org.sonarlint.cli.report.ReportFactory;
 import org.sonarsource.sonarlint.core.StandaloneSonarLintEngineImpl;
 import org.sonarsource.sonarlint.core.client.api.common.analysis.ClientInputFile;
@@ -34,10 +32,8 @@ import org.sonarsource.sonarlint.core.client.api.standalone.StandaloneGlobalConf
 import org.sonarsource.sonarlint.core.client.api.standalone.StandaloneSonarLintEngine;
 
 import java.io.IOException;
-import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.Collections;
 import java.util.HashMap;
 
@@ -76,51 +72,27 @@ public class StandaloneSonarLintTest {
     InputFileFinder fileFinder = mock(InputFileFinder.class);
     Path inputFile = temp.newFile().toPath();
     when(fileFinder.collect(any(Path.class))).thenReturn(Collections.singletonList(createInputFile(inputFile, false)));
-    String path = temp.newFolder().getAbsolutePath();
-    System.setProperty(SonarProperties.PROJECT_HOME, path);
-    sonarLint.runAnalysis(new HashMap<>(), new ReportFactory(StandardCharsets.UTF_8), fileFinder);
+    Path projectHome = temp.newFolder().toPath();
+    sonarLint.runAnalysis(new HashMap<>(), new ReportFactory(StandardCharsets.UTF_8), fileFinder, projectHome);
 
-    verify(fileFinder).collect(Paths.get(path));
+    verify(fileFinder).collect(projectHome);
 
-    Path htmlReport = Paths.get(path).resolve(".sonarlint").resolve("sonarlint-report.html");
+    Path htmlReport = projectHome.resolve(".sonarlint").resolve("sonarlint-report.html");
     assertThat(htmlReport).exists();
   }
 
   @Test
   public void runWithoutFiles() throws IOException {
     InputFileFinder fileFinder = mock(InputFileFinder.class);
-    when(fileFinder.collect(any(Path.class))).thenReturn(Collections.<ClientInputFile>emptyList());
-    String path = temp.newFolder().getAbsolutePath();
-    System.setProperty(SonarProperties.PROJECT_HOME, path);
+    when(fileFinder.collect(any(Path.class))).thenReturn(Collections.emptyList());
+    Path projectHome = temp.newFolder().toPath();
+    sonarLint.runAnalysis(new HashMap<>(), new ReportFactory(StandardCharsets.UTF_8), fileFinder, projectHome);
 
-    sonarLint.runAnalysis(new HashMap<>(), new ReportFactory(StandardCharsets.UTF_8), fileFinder);
-
-    Path htmlReport = Paths.get(path).resolve(".sonarlint").resolve("sonarlint-report.html");
+    Path htmlReport = projectHome.resolve(".sonarlint").resolve("sonarlint-report.html");
     assertThat(htmlReport).doesNotExist();
   }
 
   private static ClientInputFile createInputFile(final Path filePath, final boolean test) {
-    return new ClientInputFile() {
-
-      @Override
-      public Path getPath() {
-        return filePath;
-      }
-
-      @Override
-      public boolean isTest() {
-        return test;
-      }
-
-      @Override
-      public Charset getCharset() {
-        return StandardCharsets.UTF_8;
-      }
-
-      @Override
-      public <G> G getClientObject() {
-        return null;
-      }
-    };
+    return new InputFileFinder.DefaultClientInputFile(filePath, test, StandardCharsets.UTF_8);
   }
 }

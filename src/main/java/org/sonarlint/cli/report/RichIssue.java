@@ -1,7 +1,7 @@
 /*
  * SonarLint CLI
- * Copyright (C) 2016-2016 SonarSource SA
- * mailto:contact AT sonarsource DOT com
+ * Copyright (C) 2016-2017 SonarSource SA
+ * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -17,9 +17,19 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-package org.sonarlint.cli.util;
+package org.sonarlint.cli.report;
 
-@FunctionalInterface
-public interface Function<T> {
-  T call();
+import org.sonarsource.sonarlint.core.client.api.common.analysis.Issue;
+
+/**
+ * Issue, enriched with additional information.
+ */
+public interface RichIssue extends Issue {
+
+  int id();
+
+  String ruleDescriptionFileName();
+
+  String creationDate();
+
 }

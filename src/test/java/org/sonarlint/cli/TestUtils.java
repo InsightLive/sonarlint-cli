@@ -1,7 +1,7 @@
 /*
  * SonarLint CLI
- * Copyright (C) 2016-2016 SonarSource SA
- * mailto:contact AT sonarsource DOT com
+ * Copyright (C) 2016-2017 SonarSource SA
+ * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -19,19 +19,18 @@
  */
 package org.sonarlint.cli;
 
-import java.nio.file.Paths;
-import org.sonarlint.cli.report.IssueWithId;
+import org.sonarlint.cli.report.RichIssue;
 import org.sonarsource.sonarlint.core.client.api.common.analysis.ClientInputFile;
 
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 public class TestUtils {
-  public static IssueWithId createTestIssue(String filePath, String ruleKey, String severity, int line) {
+  public static RichIssue createTestIssue(String filePath, String ruleKey, String severity, int line) {
     ClientInputFile inputFile = mock(ClientInputFile.class);
-    when(inputFile.getPath()).thenReturn(Paths.get(filePath));
+    when(inputFile.getPath()).thenReturn(filePath);
 
-    IssueWithId issue = mock(IssueWithId.class);
+    RichIssue issue = mock(RichIssue.class);
     when(issue.getStartLine()).thenReturn(line);
     when(issue.getInputFile()).thenReturn(inputFile);
     when(issue.getRuleKey()).thenReturn(ruleKey);

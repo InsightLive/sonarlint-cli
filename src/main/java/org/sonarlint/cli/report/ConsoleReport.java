@@ -1,7 +1,7 @@
 /*
  * SonarLint CLI
- * Copyright (C) 2016-2016 SonarSource SA
- * mailto:contact AT sonarsource DOT com
+ * Copyright (C) 2016-2017 SonarSource SA
+ * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -19,13 +19,14 @@
  */
 package org.sonarlint.cli.report;
 
+import java.util.Collection;
 import java.util.Date;
-import java.util.List;
 import java.util.function.Function;
 import org.sonarlint.cli.util.Logger;
 import org.sonarsource.sonarlint.core.client.api.common.RuleDetails;
 import org.sonarsource.sonarlint.core.client.api.common.analysis.AnalysisResults;
 import org.sonarsource.sonarlint.core.client.api.common.analysis.Issue;
+import org.sonarsource.sonarlint.core.tracking.Trackable;
 
 public class ConsoleReport implements Reporter {
 
@@ -76,10 +77,10 @@ public class ConsoleReport implements Reporter {
   }
 
   @Override
-  public void execute(String projectName, Date date, List<Issue> issues, AnalysisResults result, Function<String, RuleDetails> ruleDescriptionProducer) {
+  public void execute(String projectName, Date date, Collection<Trackable> trackables, AnalysisResults result, Function<String, RuleDetails> ruleDescriptionProducer) {
     Report r = new Report();
-    for (Issue issue : issues) {
-      r.process(issue);
+    for (Trackable trackable : trackables) {
+      r.process(trackable.getIssue());
     }
     printReport(r, result);
   }

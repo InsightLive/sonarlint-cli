@@ -1,7 +1,7 @@
 /*
  * SonarLint CLI
- * Copyright (C) 2016-2016 SonarSource SA
- * mailto:contact AT sonarsource DOT com
+ * Copyright (C) 2016-2017 SonarSource SA
+ * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -32,9 +32,9 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import java.util.Collection;
 import java.util.Date;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Function;
@@ -43,7 +43,7 @@ import org.sonarlint.cli.util.Logger;
 import org.sonarlint.cli.util.Util;
 import org.sonarsource.sonarlint.core.client.api.common.RuleDetails;
 import org.sonarsource.sonarlint.core.client.api.common.analysis.AnalysisResults;
-import org.sonarsource.sonarlint.core.client.api.common.analysis.Issue;
+import org.sonarsource.sonarlint.core.tracking.Trackable;
 
 public class HtmlReport implements Reporter {
   private static final Logger LOGGER = Logger.get();
@@ -60,10 +60,10 @@ public class HtmlReport implements Reporter {
   }
 
   @Override
-  public void execute(String projectName, Date date, List<Issue> issues, AnalysisResults result, Function<String, RuleDetails> ruleDescriptionProducer) {
+  public void execute(String projectName, Date date, Collection<Trackable> trackables, AnalysisResults result, Function<String, RuleDetails> ruleDescriptionProducer) {
     IssuesReport report = new IssuesReport(basePath, charset);
-    for (Issue i : issues) {
-      report.addIssue(i);
+    for (Trackable trackable : trackables) {
+      report.addIssue(trackable);
     }
     report.setTitle(projectName);
     report.setDate(date);
@@ -80,10 +80,15 @@ public class HtmlReport implements Reporter {
       copyDependency(target, "rule.css");
       for (String ruleKey : ruleKeys) {
         RuleDetails ruleDetails = ruleDescriptionProducer.apply(ruleKey);
+        String htmlDescription = ruleDetails.getHtmlDescription();
+        String extendedDescription = ruleDetails.getExtendedDescription();
+        if (!extendedDescription.isEmpty()) {
+          htmlDescription += "\n<div>" + extendedDescription + "</div>";
+        }
         FileUtils.write(target.resolve(Util.escapeFileName(ruleKey) + ".html").toFile(),
           "<!doctype html><html><head><link href=\"rule.css\" rel=\"stylesheet\" type=\"text/css\" /></head><body><h1><big>" + ruleDetails.getName() + "</big> ("
             + ruleKey
-            + ")</h1><div class=\"rule-desc\">" + ruleDetails.getHtmlDescription()
+            + ")</h1><div class=\"rule-desc\">" + htmlDescription
             + "</div></body></html>",
           StandardCharsets.UTF_8);
       }

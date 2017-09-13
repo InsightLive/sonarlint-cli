@@ -1,7 +1,7 @@
 /*
  * SonarLint CLI
- * Copyright (C) 2016-2016 SonarSource SA
- * mailto:contact AT sonarsource DOT com
+ * Copyright (C) 2016-2017 SonarSource SA
+ * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -86,9 +86,17 @@ public class SonarLintFactoryTest {
   }
 
   @Test
-  public void testCreateStandalone() {
+  public void test_createSonarLint_with_custom_global_config() {
     mockConfigs(null, null);
     SonarLint sonarLint = sonarLintFactory.createSonarLint(globalConfigPath, projectConfigPath, false, true);
+
+    assertThat(sonarLint).isNotNull();
+    assertThat(sonarLint).isInstanceOf(StandaloneSonarLint.class);
+  }
+
+  @Test
+  public void test_createSonarLint_with_default_global_config() {
+    SonarLint sonarLint = sonarLintFactory.createSonarLint(Paths.get("dummy"), false, true);
 
     assertThat(sonarLint).isNotNull();
     assertThat(sonarLint).isInstanceOf(StandaloneSonarLint.class);

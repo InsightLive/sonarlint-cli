@@ -1,7 +1,7 @@
 /*
  * SonarLint CLI
- * Copyright (C) 2016-2016 SonarSource SA
- * mailto:contact AT sonarsource DOT com
+ * Copyright (C) 2016-2017 SonarSource SA
+ * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -24,6 +24,8 @@ import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Date;
@@ -31,14 +33,17 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+
+import javax.annotation.Nullable;
+
 import org.sonarlint.cli.report.source.HtmlSourceDecorator;
 import org.sonarlint.cli.util.Util;
 import org.sonarsource.sonarlint.core.client.api.common.analysis.ClientInputFile;
 import org.sonarsource.sonarlint.core.client.api.common.analysis.Issue;
+import org.sonarsource.sonarlint.core.tracking.Trackable;
 
 public class IssuesReport {
 
-  public static final int TOO_MANY_ISSUES_THRESHOLD = 1000;
   private String title;
   private Date date;
   private int filesAnalyzed;
@@ -106,8 +111,10 @@ public class IssuesReport {
     return ruleNameByKey.get(ruleKey);
   }
 
-  public void addIssue(Issue issue) {
-    IssueWithId issueWithId = new IssueWithIdImpl(issue, id);
+  public void addIssue(Trackable trackable) {
+    Issue issue = trackable.getIssue();
+    Long millis = trackable.getServerIssueKey() != null ? trackable.getCreationDate() : null;
+    RichIssue richIssue = new RichIssueImpl(issue, id, millis);
     id++;
     ruleNameByKey.put(issue.getRuleKey(), issue.getRuleName());
 
@@ -117,21 +124,25 @@ public class IssuesReport {
       // issue on project (no specific file)
       filePath = Paths.get("");
     } else {
-      filePath = inputFile.getPath();
+      filePath = Paths.get(inputFile.getPath());
     }
     ResourceReport report = getOrCreate(filePath);
-    getSummary().addIssue(issueWithId);
-    report.addIssue(issueWithId);
+    summary.addIssue(richIssue);
+    report.addIssue(richIssue);
   }
 
-  private static class IssueWithIdImpl implements IssueWithId {
+  private static class RichIssueImpl implements RichIssue {
+
+    private static final DateFormat DATE_FORMAT = new SimpleDateFormat("MMMMM d, Y K:m a");
 
     private final Issue wrapped;
     private final int id;
+    private final String creationDate;
 
-    public IssueWithIdImpl(Issue wrapped, int id) {
+    public RichIssueImpl(Issue wrapped, int id, @Nullable Long creationDateMillis) {
       this.wrapped = wrapped;
       this.id = id;
+      this.creationDate = creationDateMillis != null ? DATE_FORMAT.format(new Date(creationDateMillis)) : null;
     }
 
     @Override
@@ -152,7 +163,6 @@ public class IssuesReport {
     @Override
     public Integer getEndLine() {
       return wrapped.getEndLine() != null ? wrapped.getEndLine() : getStartLine();
-
     }
 
     @Override
@@ -162,27 +172,28 @@ public class IssuesReport {
     }
 
     @Override
+    public List<Flow> flows() {
+      return wrapped.flows();
+    }
+
+    @Override
     public String getMessage() {
       return wrapped.getMessage();
-
     }
 
     @Override
     public String getRuleKey() {
       return wrapped.getRuleKey();
-
     }
 
     @Override
     public String getRuleName() {
       return wrapped.getRuleName();
-
     }
 
     @Override
     public ClientInputFile getInputFile() {
       return wrapped.getInputFile();
-
     }
 
     @Override
@@ -195,6 +206,10 @@ public class IssuesReport {
       return Util.escapeFileName(wrapped.getRuleKey()) + ".html";
     }
 
+    @Override
+    public String creationDate() {
+      return creationDate;
+    }
   }
 
   private ResourceReport getOrCreate(Path filePath) {
@@ -207,37 +222,37 @@ public class IssuesReport {
     return report;
   }
 
-  public List<String> getEscapedSource(Path filePath) {
+  public List<String> getEscapedSource(@Nullable Path filePath) {
     if (filePath == null) {
       return Collections.emptyList();
     }
     List<String> lines;
     try {
-      if (!Files.isRegularFile(filePath)) {
+      if (!filePath.toFile().exists()) {
         // invalid, directory, project issue, ...
         return Collections.emptyList();
       }
 
       lines = Files.readAllLines(filePath, charset);
     } catch (IOException e) {
-      throw new IllegalStateException("Unable to read source code of file: " + filePath, e);
+      throw new IllegalStateException("unable to read source code of file: " + filePath, e);
     }
+
     ResourceReport resourceReport = resourceReportsByFilePath.get(filePath);
+    if (resourceReport == null) {
+      throw new IllegalStateException("file has no associated report: " + filePath);
+    }
+
     List<String> escapedLines = new ArrayList<>(lines.size());
-    int lineIdx = 1;
-    for (String line : lines) {
-      final int currentLineIdx = lineIdx;
-      List<IssueWithId> issuesAtLine = resourceReport != null
-        ? resourceReport.getIssues().stream()
-          .filter(i -> i.getStartLine() <= currentLineIdx && i.getEndLine() >= currentLineIdx)
-          .collect(Collectors.toList())
-        : Collections.emptyList();
+    for (int i = 0; i < lines.size(); i++) {
+      String line = lines.get(i);
+      final int currentLineIdx = i + 1;
+      List<RichIssue> issuesAtLine = resourceReport.getIssues().stream()
+        .filter(issue -> issue.getStartLine() <= currentLineIdx && currentLineIdx <= issue.getEndLine())
+        .collect(Collectors.toList());
 
       escapedLines.add(HtmlSourceDecorator.getDecoratedSourceAsHtml(line, currentLineIdx, issuesAtLine));
-      lineIdx++;
     }
     return escapedLines;
-
   }
-
 }

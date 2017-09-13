@@ -1,7 +1,7 @@
 /*
  * SonarSource :: IT :: SonarLint CLI
- * Copyright (C) 2016 SonarSource
- * sonarqube@googlegroups.com
+ * Copyright (C) 2016-2017 SonarSource SA
+ * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -13,9 +13,9 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
  * Lesser General Public License for more details.
  *
- * You should have received a copy of the GNU Lesser General Public
- * License along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02
+ * You should have received a copy of the GNU Lesser General Public License
+ * along with this program; if not, write to the Free Software Foundation,
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 package it.sonarlint.cli;
 
@@ -43,10 +43,9 @@ public class LanguageTest {
     int code = sonarlint.deployAndRunProject("java-sample");
     assertThat(code).isEqualTo(0);
 
-    assertThat(sonarlint.getOut()).contains("11 issues");
-    assertThat(sonarlint.getOut()).contains("1 critical");
+    assertThat(sonarlint.getOut()).contains("6 issues");
     assertThat(sonarlint.getOut()).contains("5 major");
-    assertThat(sonarlint.getOut()).contains("5 minor");
+    assertThat(sonarlint.getOut()).contains("1 minor");
     assertThat(sonarlint.getOut()).contains("2 files analyzed");
   }
 
@@ -56,20 +55,18 @@ public class LanguageTest {
     int code = sonarlint.run(project);
     assertThat(code).isEqualTo(0);
 
-    assertThat(sonarlint.getOut()).contains("11 issues");
-    assertThat(sonarlint.getOut()).contains("1 critical");
+    assertThat(sonarlint.getOut()).contains("6 issues");
     assertThat(sonarlint.getOut()).contains("5 major");
-    assertThat(sonarlint.getOut()).contains("5 minor");
+    assertThat(sonarlint.getOut()).contains("1 minor");
     assertThat(sonarlint.getOut()).contains("2 files analyzed");
 
     FileUtils.deleteDirectory(project.resolve(".sonarlint").toFile());
     code = sonarlint.run(project);
     assertThat(code).isEqualTo(0);
 
-    assertThat(sonarlint.getOut()).contains("11 issues");
-    assertThat(sonarlint.getOut()).contains("1 critical");
+    assertThat(sonarlint.getOut()).contains("6 issues");
     assertThat(sonarlint.getOut()).contains("5 major");
-    assertThat(sonarlint.getOut()).contains("5 minor");
+    assertThat(sonarlint.getOut()).contains("1 minor");
     assertThat(sonarlint.getOut()).contains("2 files analyzed");
   }
 
@@ -81,9 +78,8 @@ public class LanguageTest {
     assertThat(sonarlint.getOut()).contains("src/main/js/Hello.js' is detected to be 'js'");
     assertThat(sonarlint.getOut()).contains("src/main/java/Hello.java' is detected to be 'java'");
 
-    assertThat(sonarlint.getOut()).contains("4 issues");
-    assertThat(sonarlint.getOut()).contains("2 major");
-    assertThat(sonarlint.getOut()).contains("2 minor");
+    assertThat(sonarlint.getOut()).contains("3 issues");
+    assertThat(sonarlint.getOut()).contains("3 minor");
 
     // 1 of each lang
     assertThat(sonarlint.getOut()).contains("2 files analyzed");

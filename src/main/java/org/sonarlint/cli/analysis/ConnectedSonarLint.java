@@ -1,7 +1,7 @@
 /*
  * SonarLint CLI
- * Copyright (C) 2016-2016 SonarSource SA
- * mailto:contact AT sonarsource DOT com
+ * Copyright (C) 2016-2017 SonarSource SA
+ * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -19,15 +19,15 @@
  */
 package org.sonarlint.cli.analysis;
 
-import java.io.File;
-import java.io.IOException;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
-
-import org.codehaus.jackson.map.ObjectMapper;
+import java.util.stream.Collectors;
+import javax.annotation.CheckForNull;
 import org.sonarlint.cli.config.SonarQubeServer;
 import org.sonarlint.cli.report.ReportFactory;
 import org.sonarlint.cli.util.Logger;
@@ -36,20 +36,30 @@ import org.sonarsource.sonarlint.core.client.api.common.RuleDetails;
 import org.sonarsource.sonarlint.core.client.api.common.analysis.AnalysisResults;
 import org.sonarsource.sonarlint.core.client.api.common.analysis.ClientInputFile;
 import org.sonarsource.sonarlint.core.client.api.common.analysis.Issue;
-import org.sonarsource.sonarlint.core.client.api.common.analysis.IssueListener;
 import org.sonarsource.sonarlint.core.client.api.connected.ConnectedAnalysisConfiguration;
 import org.sonarsource.sonarlint.core.client.api.connected.ConnectedSonarLintEngine;
-import org.sonarsource.sonarlint.core.client.api.connected.GlobalUpdateStatus;
-import org.sonarsource.sonarlint.core.client.api.connected.ModuleUpdateStatus;
+import org.sonarsource.sonarlint.core.client.api.connected.GlobalStorageStatus;
+import org.sonarsource.sonarlint.core.client.api.connected.ModuleStorageStatus;
 import org.sonarsource.sonarlint.core.client.api.connected.ServerConfiguration;
+import org.sonarsource.sonarlint.core.tracking.CachingIssueTracker;
+import org.sonarsource.sonarlint.core.tracking.CachingIssueTrackerImpl;
+import org.sonarsource.sonarlint.core.tracking.Console;
+import org.sonarsource.sonarlint.core.tracking.InMemoryIssueTrackerCache;
+import org.sonarsource.sonarlint.core.tracking.IssueTrackable;
+import org.sonarsource.sonarlint.core.tracking.IssueTrackerCache;
+import org.sonarsource.sonarlint.core.tracking.ServerIssueTracker;
+import org.sonarsource.sonarlint.core.tracking.Trackable;
+
+import static org.sonarsource.sonarlint.core.client.api.util.FileUtils.toSonarQubePath;
 
 public class ConnectedSonarLint extends SonarLint {
   private static final Logger LOGGER = Logger.get();
+
   private final ConnectedSonarLintEngine engine;
   private final String moduleKey;
   private final SonarQubeServer server;
 
-  public ConnectedSonarLint(ConnectedSonarLintEngine engine, SonarQubeServer server, String moduleKey) {
+  ConnectedSonarLint(ConnectedSonarLintEngine engine, SonarQubeServer server, String moduleKey) {
     this.engine = engine;
     this.server = server;
     this.moduleKey = moduleKey;
@@ -57,15 +67,15 @@ public class ConnectedSonarLint extends SonarLint {
 
   @Override
   public void start(boolean forceUpdate) {
-    GlobalUpdateStatus updateStatus = engine.getUpdateStatus();
+    GlobalStorageStatus globalStorageStatus = engine.getGlobalStorageStatus();
 
     if (forceUpdate) {
       LOGGER.info("Updating binding..");
       update();
-    } else if (updateStatus == null) {
+    } else if (globalStorageStatus == null) {
       LOGGER.info("No binding storage found. Updating..");
       update();
-    } else if (updateStatus.isStale()) {
+    } else if (globalStorageStatus.isStale()) {
       LOGGER.info("Binding storage is stale. Updating..");
       update();
     } else {
@@ -75,16 +85,16 @@ public class ConnectedSonarLint extends SonarLint {
 
   private void checkModuleStatus() {
     engine.allModulesByKey().keySet().stream()
-            .filter(key -> key.equals(moduleKey))
-            .findAny()
-            .orElseThrow(() -> new IllegalStateException("Project key '" + moduleKey + "' not found in the binding storage. Maybe an update of the storage is needed with '-u'?"));
+      .filter(key -> key.equals(moduleKey))
+      .findAny()
+      .orElseThrow(() -> new IllegalStateException("Project key '" + moduleKey + "' not found in the binding storage. Maybe an update of the storage is needed with '-u'?"));
 
-    ModuleUpdateStatus moduleUpdateStatus = engine.getModuleUpdateStatus(moduleKey);
-    if (moduleUpdateStatus == null) {
+    ModuleStorageStatus moduleStorageStatus = engine.getModuleStorageStatus(moduleKey);
+    if (moduleStorageStatus == null) {
       LOGGER.info("Updating data for module..");
       engine.updateModule(getServerConfiguration(server), moduleKey);
       LOGGER.info("Module updated");
-    } else if (moduleUpdateStatus.isStale()) {
+    } else if (moduleStorageStatus.isStale()) {
       LOGGER.info("Module's data is stale. Updating..");
       engine.updateModule(getServerConfiguration(server), moduleKey);
       LOGGER.info("Module updated");
@@ -94,9 +104,9 @@ public class ConnectedSonarLint extends SonarLint {
   private void update() {
     engine.update(getServerConfiguration(server));
     engine.allModulesByKey().keySet().stream()
-            .filter(key -> key.equals(moduleKey))
-            .findAny()
-            .orElseThrow(() -> new IllegalStateException("Project key '" + moduleKey + "' not found in the SonarQube server"));
+      .filter(key -> key.equals(moduleKey))
+      .findAny()
+      .orElseThrow(() -> new IllegalStateException("Project key '" + moduleKey + "' not found in the SonarQube server"));
     updateModule();
     LOGGER.info("Binding updated");
   }
@@ -107,11 +117,12 @@ public class ConnectedSonarLint extends SonarLint {
 
   private static ServerConfiguration getServerConfiguration(SonarQubeServer server) {
     ServerConfiguration.Builder serverConfigBuilder = ServerConfiguration.builder()
-            .url(server.url())
-            .userAgent("SonarLint CLI " + SystemInfo.getVersion());
+      .url(server.url())
+      .userAgent("SonarLint CLI " + SystemInfo.getVersion());
 
-    if (server.token() != null) {
-      serverConfigBuilder.token(server.token());
+    String token = server.token();
+    if (token != null) {
+      serverConfigBuilder.token(token);
     } else {
       serverConfigBuilder.credentials(server.login(), server.password());
     }
@@ -119,39 +130,66 @@ public class ConnectedSonarLint extends SonarLint {
   }
 
   @Override
-  protected void doAnalysis(Map<String, String> properties, ReportFactory reportFactory, List<ClientInputFile> inputFiles, Path baseDirPath) throws IOException {
-
+  protected void doAnalysis(Map<String, String> properties, ReportFactory reportFactory, List<ClientInputFile> inputFiles, Path baseDirPath) {
     Date start = new Date();
-    IssueCollector collector = new IssueCollector();
     ConnectedAnalysisConfiguration config = new ConnectedAnalysisConfiguration(moduleKey, baseDirPath, baseDirPath.resolve(".sonarlint"),
-            inputFiles, properties);
+      inputFiles, properties);
+    IssueCollector collector = new IssueCollector();
     AnalysisResults result = engine.analyze(config, collector);
-    //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-    List<Issue> src = collector.get();
-    List<Violation> violations = new ArrayList<Violation>();
-    for (Issue issue : src) {
+    engine.downloadServerIssues(getServerConfiguration(server), moduleKey);
+    Collection<Trackable> trackables = matchAndTrack(baseDirPath, collector.get());
+    generateReports(trackables, result, reportFactory, baseDirPath.getFileName().toString(), baseDirPath, start);
+  }
 
-      Violation vio = new Violation();
-      vio.setEndLine(issue.getEndLine());
-      vio.setFilePath(issue.getInputFile().getPath().toAbsolutePath().toString());
-      vio.setMessage(issue.getMessage());
-      vio.setStartLine(issue.getStartLine());
-      vio.setRuleKey(issue.getRuleKey());
-      vio.setRuleName(issue.getRuleName());
-      vio.setSeverity(issue.getSeverity());
-      vio.setEndLineOffset(issue.getEndLineOffset());
-      vio.setStartLineOffset(issue.getStartLineOffset());
+  Collection<Trackable> matchAndTrack(Path baseDirPath, Collection<Issue> issues) {
+    Collection<Issue> issuesWithFile = issues.stream().filter(issue -> issue.getInputFile() != null).collect(Collectors.toList());
+    Collection<String> relativePaths = getRelativePaths(baseDirPath, issuesWithFile);
+    Map<String, List<Trackable>> trackablesPerFile = getTrackablesPerFile(baseDirPath, issuesWithFile);
+    IssueTrackerCache cache = createCurrentIssueTrackerCache(relativePaths, trackablesPerFile);
+    return getCurrentTrackables(relativePaths, cache);
+  }
 
-      violations.add(vio);
+  private IssueTrackerCache createCurrentIssueTrackerCache(Collection<String> relativePaths, Map<String, List<Trackable>> trackablesPerFile) {
+    IssueTrackerCache cache = new InMemoryIssueTrackerCache();
+    CachingIssueTracker issueTracker = new CachingIssueTrackerImpl(cache);
+    trackablesPerFile.entrySet().forEach(entry -> issueTracker.matchAndTrackAsNew(entry.getKey(), entry.getValue()));
+    ServerIssueTracker serverIssueTracker = new ServerIssueTracker(new MyLogger(), new MyConsole(), issueTracker);
+    serverIssueTracker.update(engine, moduleKey, relativePaths);
+    return cache;
+  }
+
+  private static List<Trackable> getCurrentTrackables(Collection<String> relativePaths, IssueTrackerCache cache) {
+    return relativePaths.stream().flatMap(f -> cache.getCurrentTrackables(f).stream())
+      .filter(trackable -> !trackable.isResolved())
+      .collect(Collectors.toList());
+  }
+
+  private Map<String, List<Trackable>> getTrackablesPerFile(Path baseDirPath, Collection<Issue> issues) {
+    return issues.stream()
+      .collect(Collectors.groupingBy(issue -> getRelativePath(baseDirPath, issue), Collectors.toList()))
+      .entrySet().stream()
+      .collect(Collectors.toMap(
+        Map.Entry::getKey,
+        entry -> entry.getValue().stream()
+          .map(IssueTrackable::new)
+          .collect(Collectors.toCollection(ArrayList::new))));
+  }
+
+  private Collection<String> getRelativePaths(Path baseDirPath, Collection<Issue> issues) {
+    return issues.stream()
+        .map(issue -> getRelativePath(baseDirPath, issue))
+        .collect(Collectors.toSet());
+  }
+
+  // note: engine.downloadServerIssues correctly figures out correct moduleKey and fileKey
+  @CheckForNull
+  String getRelativePath(Path baseDirPath, Issue issue) {
+    ClientInputFile inputFile = issue.getInputFile();
+    if (inputFile == null) {
+      return null;
     }
 
-    ViolationWrapper violationWrapper = new ViolationWrapper();
-    violationWrapper.setViolations(violations);
-
-    ObjectMapper objectMapper = new ObjectMapper();
-    objectMapper.writeValue(new File(properties.get("outputDir")), violations);
-    //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-    //generateReports(collector.get(), result, reportFactory, baseDirPath.getFileName().toString(), baseDirPath, start);
+    return toSonarQubePath(baseDirPath.relativize(Paths.get(inputFile.getPath())).toString());
   }
 
   @Override
@@ -162,5 +200,29 @@ public class ConnectedSonarLint extends SonarLint {
   @Override
   public void stop() {
     engine.stop(false);
+  }
+
+  private static class MyLogger implements org.sonarsource.sonarlint.core.tracking.Logger {
+    @Override public void error(String message, Exception e) {
+      LOGGER.error(message, e);
+    }
+
+    @Override public void debug(String message, Exception e) {
+      LOGGER.debug(message, e);
+    }
+
+    @Override public void debug(String message) {
+      LOGGER.debug(message);
+    }
+  }
+
+  private static class MyConsole implements Console {
+    @Override public void info(String message) {
+      LOGGER.info(message);
+    }
+
+    @Override public void error(String message, Throwable t) {
+      LOGGER.error(message, t);
+    }
   }
 }

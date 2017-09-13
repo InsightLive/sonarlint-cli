@@ -1,7 +1,7 @@
 /*
  * SonarLint CLI
- * Copyright (C) 2016-2016 SonarSource SA
- * mailto:contact AT sonarsource DOT com
+ * Copyright (C) 2016-2017 SonarSource SA
+ * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -22,18 +22,19 @@ package org.sonarlint.cli.util;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
+import java.util.function.Supplier;
 
 public class Util {
   private Util() {
     // static only
   }
 
-  public static <T, U> U getOrCreate(Map<T, U> map, T key, Function<U> f) {
+  public static <T, U> U getOrCreate(Map<T, U> map, T key, Supplier<U> f) {
     U value = map.get(key);
     if (value != null) {
       return value;
     }
-    value = f.call();
+    value = f.get();
     map.put(key, value);
     return value;
   }

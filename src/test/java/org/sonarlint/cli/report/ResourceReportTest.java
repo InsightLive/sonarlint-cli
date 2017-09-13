@@ -1,7 +1,7 @@
 /*
  * SonarLint CLI
- * Copyright (C) 2016-2016 SonarSource SA
- * mailto:contact AT sonarsource DOT com
+ * Copyright (C) 2016-2017 SonarSource SA
+ * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -43,8 +43,8 @@ public class ResourceReportTest {
 
   @Test
   public void testIssuesLines() {
-    IssueWithId i1 = createTestIssue("file1", "rule1", "MAJOR", 10);
-    IssueWithId i2 = createTestIssue("file1", "rule1", "MAJOR", 11);
+    RichIssue i1 = createTestIssue("file1", "rule1", "MAJOR", 10);
+    RichIssue i2 = createTestIssue("file1", "rule1", "MAJOR", 11);
     resourceReport.addIssue(i1);
     resourceReport.addIssue(i2);
 
@@ -74,10 +74,10 @@ public class ResourceReportTest {
 
   @Test
   public void testCategoryReport() {
-    IssueWithId i1 = createTestIssue("file1", "rule1", "MAJOR", 10);
-    IssueWithId i2 = createTestIssue("file1", "rule1", "MINOR", 11);
-    IssueWithId i3 = createTestIssue("file1", "rule2", "MINOR", 11);
-    IssueWithId i4 = createTestIssue("file1", "rule2", "MINOR", 12);
+    RichIssue i1 = createTestIssue("file1", "rule1", "MAJOR", 10);
+    RichIssue i2 = createTestIssue("file1", "rule1", "MINOR", 11);
+    RichIssue i3 = createTestIssue("file1", "rule2", "MINOR", 11);
+    RichIssue i4 = createTestIssue("file1", "rule2", "MINOR", 12);
     resourceReport.addIssue(i1);
     resourceReport.addIssue(i2);
     resourceReport.addIssue(i3);
@@ -105,8 +105,8 @@ public class ResourceReportTest {
 
   @Test
   public void lineIssues() {
-    IssueWithId i1 = createTestIssue("file1", "rule1", "MAJOR", 10);
-    IssueWithId i2 = createTestIssue("file1", "rule1", "MINOR", 11);
+    RichIssue i1 = createTestIssue("file1", "rule1", "MAJOR", 10);
+    RichIssue i2 = createTestIssue("file1", "rule1", "MINOR", 11);
     resourceReport.addIssue(i1);
     resourceReport.addIssue(i2);
 

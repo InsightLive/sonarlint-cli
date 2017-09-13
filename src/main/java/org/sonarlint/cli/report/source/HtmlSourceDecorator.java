@@ -1,7 +1,7 @@
 /*
  * SonarLint CLI
- * Copyright (C) 2016-2016 SonarSource SA
- * mailto:contact AT sonarsource DOT com
+ * Copyright (C) 2016-2017 SonarSource SA
+ * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -22,12 +22,16 @@ package org.sonarlint.cli.report.source;
 import java.util.List;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nullable;
-import org.sonarlint.cli.report.IssueWithId;
+import org.sonarlint.cli.report.RichIssue;
 
 public class HtmlSourceDecorator {
 
+  private HtmlSourceDecorator() {
+    // utility class, forbidden constructor
+  }
+
   @CheckForNull
-  public static String getDecoratedSourceAsHtml(@Nullable String sourceLine, int currentLineIdx, List<IssueWithId> issues) {
+  public static String getDecoratedSourceAsHtml(@Nullable String sourceLine, int currentLineIdx, List<RichIssue> issues) {
     if (sourceLine == null) {
       return null;
     }

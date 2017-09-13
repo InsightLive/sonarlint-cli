@@ -1,7 +1,7 @@
 /*
  * SonarLint CLI
- * Copyright (C) 2016-2016 SonarSource SA
- * mailto:contact AT sonarsource DOT com
+ * Copyright (C) 2016-2017 SonarSource SA
+ * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -46,7 +46,6 @@ public class SonarLintFactory {
   private static final Logger LOGGER = Logger.get();
 
   private static final Path GLOBAL_CONFIGURATION_FILEPATH;
-  private static final Path PROJECT_CONFIGURATION_FILEPATH;
 
   private static final String GLOBAL_CONFIGURATION_FILENAME = "global.json";
   private static final String PROJECT_CONFIGURATION_FILENAME = "sonarlint.json";
@@ -59,15 +58,14 @@ public class SonarLintFactory {
       .resolve(".sonarlint")
       .resolve("conf")
       .resolve(GLOBAL_CONFIGURATION_FILENAME);
-    PROJECT_CONFIGURATION_FILEPATH = Paths.get("").resolve(PROJECT_CONFIGURATION_FILENAME);
   }
 
   public SonarLintFactory(ConfigurationReader configurationReader) {
     this.configurationReader = configurationReader;
   }
 
-  public SonarLint createSonarLint(boolean mustBeConnected, boolean verbose) {
-    return createSonarLint(GLOBAL_CONFIGURATION_FILEPATH, PROJECT_CONFIGURATION_FILEPATH, mustBeConnected, verbose);
+  public SonarLint createSonarLint(Path projectHome, boolean mustBeConnected, boolean verbose) {
+    return createSonarLint(GLOBAL_CONFIGURATION_FILEPATH, projectHome.resolve(PROJECT_CONFIGURATION_FILENAME), mustBeConnected, verbose);
   }
 
   public SonarLint createSonarLint(Path globalConfigPath, Path projectConfigPath, boolean mustBeConnected, boolean verbose) {

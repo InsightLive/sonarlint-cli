@@ -1,7 +1,7 @@
 /*
  * SonarLint CLI
- * Copyright (C) 2016-2016 SonarSource SA
- * mailto:contact AT sonarsource DOT com
+ * Copyright (C) 2016-2017 SonarSource SA
+ * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -38,7 +38,7 @@ public class ReportSummaryTest {
 
   @Test
   public void test() {
-    for (IssueWithId i : createTestIssues()) {
+    for (RichIssue i : createTestIssues()) {
       summary.addIssue(i);
     }
 
@@ -65,8 +65,8 @@ public class ReportSummaryTest {
     assertThat(iv.getResolvedIssuesCount()).isEqualTo(resolved);
   }
 
-  private static List<IssueWithId> createTestIssues() {
-    List<IssueWithId> issueList = new LinkedList<>();
+  private static List<RichIssue> createTestIssues() {
+    List<RichIssue> issueList = new LinkedList<>();
 
     issueList.add(createTestIssue("comp1", "rule1", "MAJOR", 10));
     issueList.add(createTestIssue("comp1", "rule2", "MINOR", 11));

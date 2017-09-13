@@ -1,7 +1,7 @@
 /*
  * SonarLint CLI
- * Copyright (C) 2016-2016 SonarSource SA
- * mailto:contact AT sonarsource DOT com
+ * Copyright (C) 2016-2017 SonarSource SA
+ * mailto:info AT sonarsource DOT com
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -26,11 +26,10 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.text.ParseException;
 import java.util.Map;
-import java.util.Properties;
-import java.util.Set;
-
 import org.sonarlint.cli.analysis.SonarLint;
 import org.sonarlint.cli.analysis.SonarLintFactory;
 import org.sonarlint.cli.config.ConfigurationReader;
@@ -39,6 +38,8 @@ import org.sonarlint.cli.util.Logger;
 import org.sonarlint.cli.util.System2;
 import org.sonarlint.cli.util.SystemInfo;
 import org.sonarlint.cli.util.Util;
+
+import static org.sonarlint.cli.SonarProperties.PROJECT_HOME;
 
 public class Main {
   static final int SUCCESS = 0;
@@ -50,13 +51,15 @@ public class Main {
   private final ReportFactory reportFactory;
   private BufferedReader inputReader;
   private final InputFileFinder fileFinder;
+  private final Path projectHome;
   private final SonarLintFactory sonarLintFactory;
 
-  public Main(Options opts, SonarLintFactory sonarLintFactory, ReportFactory reportFactory, InputFileFinder fileFinder) {
+  public Main(Options opts, SonarLintFactory sonarLintFactory, ReportFactory reportFactory, InputFileFinder fileFinder, Path projectHome) {
     this.opts = opts;
     this.sonarLintFactory = sonarLintFactory;
     this.reportFactory = reportFactory;
     this.fileFinder = fileFinder;
+    this.projectHome = projectHome;
   }
 
   int run() {
@@ -83,16 +86,15 @@ public class Main {
 
     Stats stats = new Stats();
     try {
-      SonarLint sonarLint = sonarLintFactory.createSonarLint(opts.isUpdate(), opts.isVerbose());
+      SonarLint sonarLint = sonarLintFactory.createSonarLint(projectHome, opts.isUpdate(), opts.isVerbose());
       sonarLint.start(opts.isUpdate());
-      Properties properties = opts.properties();
-      Set<String> keys = properties.stringPropertyNames();
+
       Map<String, String> props = Util.toMap(opts.properties());
 
       if (opts.isInteractive()) {
-        runInteractive(stats, sonarLint, props);
+        runInteractive(stats, sonarLint, props, projectHome);
       } else {
-        runOnce(stats, sonarLint, props);
+        runOnce(stats, sonarLint, props, projectHome);
       }
     } catch (Exception e) {
       displayExecutionResult(stats, "FAILURE");
@@ -103,17 +105,25 @@ public class Main {
     return SUCCESS;
   }
 
-  private void runOnce(Stats stats, SonarLint sonarLint, Map<String, String> props) throws IOException {
+  private static Path getProjectHome(System2 system) {
+    String projectHome = system.getProperty(PROJECT_HOME);
+    if (projectHome == null) {
+      throw new IllegalStateException("Can't find project home. System property not set: " + PROJECT_HOME);
+    }
+    return Paths.get(projectHome);
+  }
+
+  private void runOnce(Stats stats, SonarLint sonarLint, Map<String, String> props, Path projectHome) throws IOException {
     stats.start();
-    sonarLint.runAnalysis(props, reportFactory, fileFinder);
+    sonarLint.runAnalysis(props, reportFactory, fileFinder, projectHome);
     sonarLint.stop();
     displayExecutionResult(stats, "SUCCESS");
   }
 
-  private void runInteractive(Stats stats, SonarLint sonarLint, Map<String, String> props) throws IOException {
+  private void runInteractive(Stats stats, SonarLint sonarLint, Map<String, String> props, Path projectHome) throws IOException {
     do {
       stats.start();
-      sonarLint.runAnalysis(props, reportFactory, fileFinder);
+      sonarLint.runAnalysis(props, reportFactory, fileFinder, projectHome);
       displayExecutionResult(stats, "SUCCESS");
     } while (waitForUser());
 
@@ -140,7 +150,7 @@ public class Main {
 
   @VisibleForTesting
   static void execute(String[] args, System2 system) {
-    Options parsedOpts = null;
+    Options parsedOpts;
     try {
       parsedOpts = Options.parse(args);
     } catch (ParseException e) {
@@ -150,7 +160,7 @@ public class Main {
       return;
     }
 
-    Charset charset = null;
+    Charset charset;
     try {
       if (parsedOpts.charset() != null) {
         charset = Charset.forName(parsedOpts.charset());
@@ -168,7 +178,7 @@ public class Main {
     ConfigurationReader reader = new ConfigurationReader();
     SonarLintFactory sonarLintFactory = new SonarLintFactory(reader);
 
-    int ret = new Main(parsedOpts, sonarLintFactory, reportFactory, fileFinder).run();
+    int ret = new Main(parsedOpts, sonarLintFactory, reportFactory, fileFinder, getProjectHome(system)).run();
     system.exit(ret);
     return;
   }
@@ -191,15 +201,13 @@ public class Main {
       }
     } else {
       LOGGER.error(message);
-      if (e != null) {
-        LOGGER.error(e.getMessage());
-        String previousMsg = "";
-        for (Throwable cause = e.getCause(); cause != null
-                && cause.getMessage() != null
-                && !cause.getMessage().equals(previousMsg); cause = cause.getCause()) {
-          LOGGER.error("Caused by: " + cause.getMessage());
-          previousMsg = cause.getMessage();
-        }
+      LOGGER.error(e.getMessage());
+      String previousMsg = "";
+      for (Throwable cause = e.getCause(); cause != null
+        && cause.getMessage() != null
+        && !cause.getMessage().equals(previousMsg); cause = cause.getCause()) {
+        LOGGER.error("Caused by: " + cause.getMessage());
+        previousMsg = cause.getMessage();
       }
       LOGGER.error("");
       LOGGER.error("To see the full stack trace of the errors, re-run SonarLint with the -e switch.");
