@@ -21,7 +21,6 @@ package org.sonarlint.cli;
 
 import java.text.ParseException;
 import java.util.Properties;
-
 import org.sonarlint.cli.util.Logger;
 
 public class Options {
@@ -39,7 +38,6 @@ public class Options {
   private String charset = null;
   private boolean update = false;
   private String task;
-
   private String inputDir = null;
   private String outputFile = null;
 
@@ -71,10 +69,9 @@ public class Options {
 
       } else if (arg.startsWith("-D") && !"-D".equals(arg)) {
         arg = arg.substring(2);
-
         appendPropertyTo(arg, options.props);
 
-      } else if ("--inputDir".equals(arg)) {
+      }else if ("--inputDir".equals(arg)) {
         checkAdditionalArg(i, args.length, arg);
         options.setInputDir(args[i]);
       } else if ("--outputFile".equals(arg)) {

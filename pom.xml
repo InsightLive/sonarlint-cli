@@ -94,6 +94,11 @@
       <version>2.3.0</version>
       <scope>test</scope>
     </dependency>
+    <dependency>
+      <groupId>org.codehaus.jackson</groupId>
+      <artifactId>jackson-mapper-asl</artifactId>
+      <version>1.9.13</version>
+    </dependency>
 
   </dependencies>
   
@@ -226,7 +231,7 @@
               <rules>
                 <requireFilesSize>
                   <minsize>30000000</minsize>
-                  <maxsize>35600000</maxsize>
+                  <maxsize>270000000</maxsize>
                   <files>
                     <file>${project.build.directory}/sonarlint-cli-${project.version}.zip</file>
                   </files>

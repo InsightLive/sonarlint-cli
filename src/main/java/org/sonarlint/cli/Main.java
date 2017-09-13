@@ -30,6 +30,9 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.text.ParseException;
 import java.util.Map;
+import java.util.Properties;
+import java.util.Set;
+
 import org.sonarlint.cli.analysis.SonarLint;
 import org.sonarlint.cli.analysis.SonarLintFactory;
 import org.sonarlint.cli.config.ConfigurationReader;
@@ -88,13 +91,17 @@ public class Main {
     try {
       SonarLint sonarLint = sonarLintFactory.createSonarLint(projectHome, opts.isUpdate(), opts.isVerbose());
       sonarLint.start(opts.isUpdate());
+      Properties properties = opts.properties();
+      Set<String> keys = properties.stringPropertyNames();
 
       Map<String, String> props = Util.toMap(opts.properties());
 
       if (opts.isInteractive()) {
         runInteractive(stats, sonarLint, props, projectHome);
       } else {
-        runOnce(stats, sonarLint, props, projectHome);
+        if(!opts.isUpdate()) {
+          runOnce(stats, sonarLint, props, projectHome);
+        }
       }
     } catch (Exception e) {
       displayExecutionResult(stats, "FAILURE");

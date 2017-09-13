@@ -19,12 +19,13 @@
  */
 package org.sonarlint.cli.analysis;
 
+import java.io.File;
+import java.io.IOException;
 import java.nio.file.Path;
-import java.util.Collection;
-import java.util.Date;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
+
+import org.codehaus.jackson.map.ObjectMapper;
 import org.sonarlint.cli.report.ReportFactory;
 import org.sonarsource.sonarlint.core.client.api.common.RuleDetails;
 import org.sonarsource.sonarlint.core.client.api.common.analysis.AnalysisResults;
@@ -33,6 +34,7 @@ import org.sonarsource.sonarlint.core.client.api.standalone.StandaloneAnalysisCo
 import org.sonarsource.sonarlint.core.client.api.standalone.StandaloneSonarLintEngine;
 import org.sonarsource.sonarlint.core.tracking.IssueTrackable;
 import org.sonarsource.sonarlint.core.tracking.Trackable;
+import org.sonarsource.sonarlint.core.client.api.common.analysis.Issue;
 
 public class StandaloneSonarLint extends SonarLint {
   private final StandaloneSonarLintEngine engine;
@@ -42,7 +44,7 @@ public class StandaloneSonarLint extends SonarLint {
   }
 
   @Override
-  protected void doAnalysis(Map<String, String> properties, ReportFactory reportFactory, List<ClientInputFile> inputFiles, Path baseDirPath) {
+  protected void doAnalysis(Map<String, String> properties, ReportFactory reportFactory, List<ClientInputFile> inputFiles, Path baseDirPath) throws IOException{
     Date start = new Date();
 
     IssueCollector collector = new IssueCollector();
@@ -50,7 +52,41 @@ public class StandaloneSonarLint extends SonarLint {
       inputFiles, properties);
     AnalysisResults result = engine.analyze(config, collector);
     Collection<Trackable> trackables = collector.get().stream().map(IssueTrackable::new).collect(Collectors.toList());
-    generateReports(trackables, result, reportFactory, baseDirPath.getFileName().toString(), baseDirPath, start);
+    //ToDo
+    //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    //Added code to write Issue object to json file.
+    List<Issue> src = collector.get();
+    List<Violation> violations = new ArrayList<Violation>();
+    for (Issue issue : src) {
+
+      String path;
+      if(issue.getInputFile() == null){
+        continue;
+      }
+
+      path = issue.getInputFile().getPath();
+
+      Violation vio = new Violation();
+      vio.setEndLine(issue.getEndLine());
+      vio.setFilePath(path);
+      vio.setMessage(issue.getMessage());
+      vio.setStartLine(issue.getStartLine());
+      vio.setRuleKey(issue.getRuleKey());
+      vio.setRuleName(issue.getRuleName());
+      vio.setSeverity(issue.getSeverity());
+      vio.setEndLineOffset(issue.getEndLineOffset());
+      vio.setStartLineOffset(issue.getStartLineOffset());
+
+      violations.add(vio);
+    }
+
+    ViolationWrapper violationWrapper = new ViolationWrapper();
+    violationWrapper.setViolations(violations);
+
+    ObjectMapper objectMapper = new ObjectMapper();
+    objectMapper.writeValue(new File(properties.get("outputDir")), violations);
+    //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+   // generateReports(trackables, result, reportFactory, baseDirPath.getFileName().toString(), baseDirPath, start);
   }
 
   @Override

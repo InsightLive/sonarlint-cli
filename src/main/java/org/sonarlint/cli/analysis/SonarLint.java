@@ -21,6 +21,7 @@ package org.sonarlint.cli.analysis;
 
 import java.io.IOException;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Collection;
 import java.util.Date;
 import java.util.List;
@@ -41,7 +42,11 @@ public abstract class SonarLint {
     // do nothing by default
   }
 
-  public void runAnalysis(Map<String, String> properties, ReportFactory reportFactory, InputFileFinder finder, Path projectHome) {
+  public void runAnalysis(Map<String, String> properties, ReportFactory reportFactory, InputFileFinder finder, Path projectHome) throws IOException{
+    //Todo
+    //overrided projectHome  with inputdir given as arg.
+    projectHome = Paths.get(properties.get("inputDir"));
+
     List<ClientInputFile> inputFiles;
     try {
       inputFiles = finder.collect(projectHome);
@@ -61,7 +66,7 @@ public abstract class SonarLint {
 
   protected abstract RuleDetails getRuleDetails(String ruleKey);
 
-  protected abstract void doAnalysis(Map<String, String> properties, ReportFactory reportFactory, List<ClientInputFile> inputFiles, Path baseDirPath);
+  protected abstract void doAnalysis(Map<String, String> properties, ReportFactory reportFactory, List<ClientInputFile> inputFiles, Path baseDirPath) throws IOException;
 
   public abstract void stop();
 

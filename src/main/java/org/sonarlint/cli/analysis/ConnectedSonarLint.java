@@ -19,6 +19,8 @@
  */
 package org.sonarlint.cli.analysis;
 
+import java.io.File;
+import java.io.IOException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
@@ -28,6 +30,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 import javax.annotation.CheckForNull;
+
+import org.codehaus.jackson.map.ObjectMapper;
 import org.sonarlint.cli.config.SonarQubeServer;
 import org.sonarlint.cli.report.ReportFactory;
 import org.sonarlint.cli.util.Logger;
@@ -130,7 +134,7 @@ public class ConnectedSonarLint extends SonarLint {
   }
 
   @Override
-  protected void doAnalysis(Map<String, String> properties, ReportFactory reportFactory, List<ClientInputFile> inputFiles, Path baseDirPath) {
+  protected void doAnalysis(Map<String, String> properties, ReportFactory reportFactory, List<ClientInputFile> inputFiles, Path baseDirPath) throws IOException{
     Date start = new Date();
     ConnectedAnalysisConfiguration config = new ConnectedAnalysisConfiguration(moduleKey, baseDirPath, baseDirPath.resolve(".sonarlint"),
       inputFiles, properties);
@@ -138,7 +142,39 @@ public class ConnectedSonarLint extends SonarLint {
     AnalysisResults result = engine.analyze(config, collector);
     engine.downloadServerIssues(getServerConfiguration(server), moduleKey);
     Collection<Trackable> trackables = matchAndTrack(baseDirPath, collector.get());
-    generateReports(trackables, result, reportFactory, baseDirPath.getFileName().toString(), baseDirPath, start);
+    //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    List<Issue> src = collector.get();
+    List<Violation> violations = new ArrayList<Violation>();
+    for (Issue issue : src) {
+
+      String path;
+      if(issue.getInputFile() == null){
+        continue;
+      }
+
+      path = issue.getInputFile().getPath();
+
+      Violation vio = new Violation();
+      vio.setEndLine(issue.getEndLine());
+      vio.setFilePath(path);
+      vio.setMessage(issue.getMessage());
+      vio.setStartLine(issue.getStartLine());
+      vio.setRuleKey(issue.getRuleKey());
+      vio.setRuleName(issue.getRuleName());
+      vio.setSeverity(issue.getSeverity());
+      vio.setEndLineOffset(issue.getEndLineOffset());
+      vio.setStartLineOffset(issue.getStartLineOffset());
+
+      violations.add(vio);
+    }
+
+    ViolationWrapper violationWrapper = new ViolationWrapper();
+    violationWrapper.setViolations(violations);
+
+    ObjectMapper objectMapper = new ObjectMapper();
+    objectMapper.writeValue(new File(properties.get("outputDir")), violations);
+    //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+   //generateReports(trackables, result, reportFactory, baseDirPath.getFileName().toString(), baseDirPath, start);
   }
 
   Collection<Trackable> matchAndTrack(Path baseDirPath, Collection<Issue> issues) {
