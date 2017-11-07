@@ -80,6 +80,10 @@ public class Main {
 
     LOGGER.setDebugEnabled(opts.isVerbose());
     LOGGER.setDisplayStackTrace(opts.showStack());
+    boolean skipUnParsableFiles=Boolean.valueOf(opts.properties().getProperty("skipUnParsableFiles"));
+    LOGGER.setSkipUnParsableFiles(skipUnParsableFiles);
+    LOGGER.setUnParsableFileLocation(opts.properties().getProperty("unParsableFileLocation"));
+
 
     SystemInfo.print(LOGGER);
 

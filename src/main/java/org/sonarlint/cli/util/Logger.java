@@ -19,20 +19,28 @@
  */
 package org.sonarlint.cli.util;
 
+import org.apache.commons.io.FileUtils;
+
+import java.io.File;
+import java.io.IOException;
 import java.io.PrintStream;
+import java.util.ArrayList;
+import java.util.List;
 
 public class Logger {
   private static volatile Logger instance;
+  private boolean skipUnParsableFiles = false;
   private boolean debugEnabled = false;
   private boolean displayStackTrace = false;
   private PrintStream stdOut;
   private PrintStream stdErr;
+  private String unParsableFileLocation;
 
   private Logger() {
     this.stdErr = System.err;
     this.stdOut = System.out;
   }
-  
+
   public Logger(PrintStream stdOut, PrintStream stdErr) {
     this.stdErr = stdErr;
     this.stdOut = stdOut;
@@ -62,6 +70,17 @@ public class Logger {
     return debugEnabled;
   }
 
+  public void setSkipUnParsableFiles(boolean skipUnParsableFiles) {
+    this.skipUnParsableFiles = skipUnParsableFiles;
+  }
+
+  public void setUnParsableFileLocation(String unParsableFileLocation) {
+    this.unParsableFileLocation = unParsableFileLocation;
+  }
+  public boolean isSkipUnParsableFilesEnabled() {
+    return skipUnParsableFiles;
+  }
+
   public void debug(String message) {
     if (isDebugEnabled()) {
       stdOut.println("DEBUG: " + message);
@@ -86,8 +105,24 @@ public class Logger {
   }
 
   public void error(String message) {
-    stdErr.println("ERROR: " + message);
-    System2.INSTANCE.exit(1);
+
+    if(isSkipUnParsableFilesEnabled() && (message.startsWith("Unable to parse file:")) ){
+
+      try {
+        stdErr.println("ERROR: " + message);
+        String splitMessage = message.split("Unable to parse file:")[1].trim();
+        FileUtils.writeStringToFile(new File(unParsableFileLocation), splitMessage+"\n", true);
+      }catch (IOException ie){
+        stdErr.println("ERROR: " + ie.getStackTrace());
+        System2.INSTANCE.exit(1);
+      }
+
+    }else if(isSkipUnParsableFilesEnabled() && message.startsWith("Parse error")) {
+      stdErr.println("ERROR: " + message);
+    }else {
+      stdErr.println("ERROR: " + message);
+      System2.INSTANCE.exit(1);
+    }
 
   }
 
